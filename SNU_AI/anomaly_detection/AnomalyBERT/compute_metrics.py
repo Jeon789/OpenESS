@@ -58,7 +58,7 @@ def interval_dependent_point(sequences, lengths):
     return (n_steps / n_intervals) / lengths
 
 
-def f1_score(gt, pr, anomaly_rate=0.05, adjust=True, modify=False):
+def ess_score(gt, pr, anomaly_rate=0.05, adjust=True, modify=False):
     # get anomaly intervals
     gt_aug = np.concatenate([np.zeros(1), gt, np.zeros(1)]).astype(np.int32)
     gt_diff = gt_aug[1:] - gt_aug[:-1]
@@ -73,7 +73,7 @@ def f1_score(gt, pr, anomaly_rate=0.05, adjust=True, modify=False):
     q = np.quantile(pa, 1-anomaly_rate)
     pa = (pa > q).astype(np.int32)
     
-    # Modified F1
+    # Modified Ess
     if modify:
         gt_seq_args, gt_seq_lens = anomaly_sequence(gt)  # gt anomaly sequence args
         ind_p = interval_dependent_point(gt_seq_args, gt_seq_lens)  # interval-dependent point
@@ -107,12 +107,12 @@ def f1_score(gt, pr, anomaly_rate=0.05, adjust=True, modify=False):
 
         assert (TP + TN + FP + FN) == len(gt)
 
-    # Compute p, r, f1.
+    # Compute p, r, ess.
     precision = TP / (TP + FP)
     recall = TP / (TP + FN)
-    f1_score = 2*precision*recall/(precision+recall)
+    ess_score = (precision+recall)/2
 
-    return precision, recall, f1_score
+    return precision, recall, ess_score
 
 
 
@@ -179,24 +179,24 @@ def compute(options):
                 fig.savefig(save_folder+'smoothed_score_division_{}.jpg'.format(i), bbox_inches='tight')
                 plt.close()
         
-    # Compute F1-scores.
-    f1_str = 'Modified F1-score' if options.modified_f1 else 'F1-score'
-    # F1 Without PA
-    result_file.write('<'+f1_str+' without point adjustment>\n\n')
+    # Compute ess-scores.
+    ess_str = 'Modified ess-score' if options.modified_ess else 'ess-score'
+    # ess Without PA
+    result_file.write('<'+ess_str+' without point adjustment>\n\n')
     
     if options.data_division == 'total':
         best_eval = (0, 0, 0)
         best_rate = 0
         for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-            evaluation = f1_score(test_label, output_values, rate, False, options.modified_f1)
-            result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | F1-score: {evaluation[2]:.5f}\n')
+            evaluation = ess_score(test_label, output_values, rate, False, options.modified_ess)
+            result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | ess-score: {evaluation[2]:.5f}\n')
             if evaluation[2] > best_eval[2]:
                 best_eval = evaluation
                 best_rate = rate
-        result_file.write('\nBest F1-score\n')
-        result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n\n\n')
-        print('Best F1-score without point adjustment')
-        print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n')
+        result_file.write('\nBest ess-score\n')
+        result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n\n\n')
+        print('Best ess-score without point adjustment')
+        print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n')
         
     else:
         average_eval = np.zeros(3)
@@ -205,33 +205,33 @@ def compute(options):
             _output_values = output_values[division[0]:division[1]]
             best_eval = (0, 0, 0)
             for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-                evaluation = f1_score(_test_label, _output_values, rate, False, options.modified_f1)
+                evaluation = ess_score(_test_label, _output_values, rate, False, options.modified_ess)
                 if evaluation[2] > best_eval[2]:
                     best_eval = evaluation
             average_eval += np.array(best_eval)
         average_eval /= len(divisions)
-        result_file.write('\nBest F1-score\n')
-        result_file.write(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | F1-score: {average_eval[2]:.5f}\n\n\n')
-        print('Best F1-score without point adjustment')
-        print(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | F1-score: {average_eval[2]:.5f}\n')
+        result_file.write('\nBest ess-score\n')
+        result_file.write(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | ess-score: {average_eval[2]:.5f}\n\n\n')
+        print('Best ess-score without point adjustment')
+        print(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | ess-score: {average_eval[2]:.5f}\n')
     
-    # F1 With PA
-    if not options.modified_f1:
-        result_file.write('<F1-score with point adjustment>\n\n')
+    # ess With PA
+    if not options.modified_ess:
+        result_file.write('<ess-score with point adjustment>\n\n')
         
         if options.data_division == 'total':
             best_eval = (0, 0, 0)
             best_rate = 0
             for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-                evaluation = f1_score(test_label, output_values, rate, True)
-                result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | F1-score: {evaluation[2]:.5f}\n')
+                evaluation = ess_score(test_label, output_values, rate, True)
+                result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | ess-score: {evaluation[2]:.5f}\n')
                 if evaluation[2] > best_eval[2]:
                     best_eval = evaluation
                     best_rate = rate
-            result_file.write('\nBest F1-score\n')
-            result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n\n\n')
-            print('Best F1-score with point adjustment')
-            print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n')
+            result_file.write('\nBest ess-score\n')
+            result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n\n\n')
+            print('Best ess-score with point adjustment')
+            print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n')
             
         else:
             average_eval = np.zeros(3)
@@ -240,47 +240,47 @@ def compute(options):
                 _output_values = output_values[division[0]:division[1]]
                 best_eval = (0, 0, 0)
                 for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-                    evaluation = f1_score(_test_label, _output_values, rate, True)
+                    evaluation = ess_score(_test_label, _output_values, rate, True)
                     if evaluation[2] > best_eval[2]:
                         best_eval = evaluation
                 average_eval += np.array(best_eval)
             average_eval /= len(divisions)
-            result_file.write('\nBest F1-score\n')
-            result_file.write(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | F1-score: {average_eval[2]:.5f}\n\n\n')
-            print('Best F1-score with point adjustment')
-            print(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | F1-score: {average_eval[2]:.5f}\n')
+            result_file.write('\nBest ess-score\n')
+            result_file.write(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | ess-score: {average_eval[2]:.5f}\n\n\n')
+            print('Best ess-score with point adjustment')
+            print(f'precision: {average_eval[0]:.5f} | recall: {average_eval[1]:.5f} | ess-score: {average_eval[2]:.5f}\n')
     
     if options.smooth_scores:
-        # F1 Without PA
-        result_file.write('<'+f1_str+' of smoothed scores without point adjustment>\n\n')
+        # ess Without PA
+        result_file.write('<'+ess_str+' of smoothed scores without point adjustment>\n\n')
         best_eval = (0, 0, 0)
         best_rate = 0
         for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-            evaluation = f1_score(test_label, smoothed_values, rate, False, options.modified_f1)
-            result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | F1-score: {evaluation[2]:.5f}\n')
+            evaluation = ess_score(test_label, smoothed_values, rate, False, options.modified_ess)
+            result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | ess-score: {evaluation[2]:.5f}\n')
             if evaluation[2] > best_eval[2]:
                 best_eval = evaluation
                 best_rate = rate
-        result_file.write('\nBest F1-score\n')
-        result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n\n\n')
-        print('Best F1-score of smoothed scores without point adjustment')
-        print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n')
+        result_file.write('\nBest ess-score\n')
+        result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n\n\n')
+        print('Best ess-score of smoothed scores without point adjustment')
+        print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n')
         
-        # F1 With PA
-        if not options.modified_f1:
-            result_file.write('<F1-score of smoothed scores with point adjustment>\n\n')
+        # ess With PA
+        if not options.modified_ess:
+            result_file.write('<ess-score of smoothed scores with point adjustment>\n\n')
             best_eval = (0, 0, 0)
             best_rate = 0
             for rate in np.arange(options.min_anomaly_rate, options.max_anomaly_rate+0.001, 0.001):
-                evaluation = f1_score(test_label, smoothed_values, rate, True)
-                result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | F1-score: {evaluation[2]:.5f}\n')
+                evaluation = ess_score(test_label, smoothed_values, rate, True)
+                result_file.write(f'anomaly rate: {rate:.3f} | precision: {evaluation[0]:.5f} | recall: {evaluation[1]:.5f} | ess-score: {evaluation[2]:.5f}\n')
                 if evaluation[2] > best_eval[2]:
                     best_eval = evaluation
                     best_rate = rate
-            result_file.write('\nBest F1-score\n')
-            result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n\n\n')
-            print('Best F1-score of smoothed scores with point adjustment')
-            print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | F1-score: {best_eval[2]:.5f}\n')
+            result_file.write('\nBest ess-score\n')
+            result_file.write(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n\n\n')
+            print('Best ess-score of smoothed scores with point adjustment')
+            print(f'anomaly rate: {best_rate:.3f} | precision: {best_eval[0]:.5f} | recall: {best_eval[1]:.5f} | ess-score: {best_eval[2]:.5f}\n')
     
     # Close file.
     result_file.close()
@@ -294,7 +294,7 @@ if __name__ == "__main__":
     
     parser.add_argument('--smooth_scores', default=False, action='store_true', help='option for smoothing scores (ewma)')
     parser.add_argument("--smoothing_weight", default=0.9, type=float, help='ewma weight when smoothing socres')
-    parser.add_argument('--modified_f1', default=False, action='store_true', help='modified f1 scores (not used now)')
+    parser.add_argument('--modified_ess', default=False, action='store_true', help='modified ess scores (not used now)')
     
     parser.add_argument('--save_figures', default=False, action='store_true', help='save figures of data and anomaly scores')
     parser.add_argument("--data_division", default='total', type=str, help='data division info when saving figures; channel/class/total')
