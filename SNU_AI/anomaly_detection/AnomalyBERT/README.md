@@ -38,8 +38,7 @@ python3 train.py --dataset=ESS_sionyu --patch_size=90 --window_sliding=512
 To train a model on ESS_panli_bank1 dataset with patch size of 2 and customized outlier synthesis probability, run:
 
 ```
-python3 train.py --dataset=ESS_panli_bank1 --patch_size=2 --soft_replacing=0.5 --uniform_replacing=0.1 --peak_noising=0.1 \
---length_adjusting=0.1
+python3 train.py --dataset=ESS_panli_bank1 --patch_size=2 --soft_replacing=0.5 --uniform_replacing=0.1 --peak_noising=0.1
 ```
 
 
