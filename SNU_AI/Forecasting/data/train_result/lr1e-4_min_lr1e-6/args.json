@@ -1,0 +1,21 @@
+{
+  "gpu_id": 0,
+  "data_dir": "./data/SoC_synthesis3",
+  "seed": null,
+  "epoch": 50,
+  "batch_size": 16,
+  "save_path": "./data/train_result/lr1e-4_min_lr1e-6",
+  "optimizer": "adamw",
+  "num_layers": 2,
+  "dropout": 0.1,
+  "lr": 0.0001,
+  "min_lr": 1e-06,
+  "loss": "mse",
+  "warmup_epochs": 5,
+  "chunk_len": 1024,
+  "output_scale": 100.0,
+  "lambda1": 0.1,
+  "lambda2": 1.0,
+  "start": 55000,
+  "end": 82000
+}
