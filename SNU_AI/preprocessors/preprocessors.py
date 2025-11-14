@@ -120,7 +120,7 @@ def preprocess_timestamp_and_columns(root_dir, dataset_name, save_root_dir):
                 # Voltage Gap 구현
                 df["VOLTAGE_GAP"] = df["MAX_CELL_VOLTAGE_OF_BANK"] - df["MIN_CELL_VOLTAGE_OF_BANK"]
                 
-                columns = ["TIMESTAMP", "BANK_DC_VOLT", "BANK_DC_CURRENT", "BANK_SOC", "MAX_CELL_TEMPERATURE_OF_BANK", "VOLTAGE_GAP"]
+                columns = ["TIMESTAMP", "BATTERY_STATUS_FOR_CHARGE", "BANK_DC_VOLT", "BANK_DC_CURRENT", "BANK_SOC", "MAX_CELL_TEMPERATURE_OF_BANK", "VOLTAGE_GAP"]
                 df = df[columns]
                 
                 # 초단위로 가공 및 중간 빈 위치 interpolate
@@ -132,8 +132,8 @@ def preprocess_timestamp_and_columns(root_dir, dataset_name, save_root_dir):
                 df = df.asfreq('S')
                 # missing_timestamps = df[df["BANK_DC_VOLT"].isna()].index
                 
-                # TIMESTAMP가 아닌 column들에 대하여 scaling 실시
-                for col in columns[1:]: 
+                # TIMESTAMP, BATTERY_STATUS_FOR_CHARGE가 아닌 column들에 대하여 scaling 실시
+                for col in columns[2:]: 
                     df[col] = df[col].interpolate()
                     if col in ["BANK_DC_VOLT", "BANK_DC_CURRENT"]:
                         df[col] = df[col]/num_modules[dataset_name]/12
@@ -168,6 +168,7 @@ def preprocess_timestamp_and_columns(root_dir, dataset_name, save_root_dir):
                 
                 # Voltage Gap 이상치 합성을 위한 내용
                 df["VOLTAGE_GAP_CURVE"] = get_voltage_gap_curve(df["BANK_DC_CURRENT"])
+
                 
                 # 전처리 완료된 df를 parquet 형태로 저장
                 df.to_parquet(parquet_save_path)
